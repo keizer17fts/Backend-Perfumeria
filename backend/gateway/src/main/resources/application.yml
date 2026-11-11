@@ -1,0 +1,42 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      # ------------------------------------------------------------------
+      # CORS: el navegador bloquea las llamadas de http://localhost:5173 (Vite) a http://localhost:8080
+      # porque son orígenes distintos. Se habilita SOLO aquí (los microservicios no ponen cabeceras CORS,
+      # así no llegan duplicadas). Para otro origen: CORS_ORIGINS="https://mi-sitio.cl,http://localhost:5173"
+      # ------------------------------------------------------------------
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: ${CORS_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173}
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            maxAge: 3600
+      # ------------------------------------------------------------------
+      # Rutas: cada microservicio ya expone sus endpoints bajo /api/..., así que se reenvía sin reescribir.
+      # ------------------------------------------------------------------
+      routes:
+        - id: ms-catalogo
+          uri: ${MS_CATALOGO_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/productos/**,/api/categorias/**,/api/ofertas/**,/api/cupones/**,/api/resenas/**,/api/alertas-stock/**,/api/catalogo/**,/api/temporada,/api/temporada/**
+        - id: ms-usuarios
+          uri: ${MS_USUARIOS_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/usuarios/**,/api/auth/**
+        - id: ms-ordenes
+          uri: ${MS_ORDENES_URL:http://localhost:8083}
+          predicates:
+            - Path=/api/ordenes/**,/api/mensajes/**

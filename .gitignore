@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+backend/**/target/
+*.iml
+.idea/
+.vscode/
+
+# Bases H2 locales persistentes
+**/data/*.mv.db
+**/data/*.trace.db
+**/data/*.lock.db

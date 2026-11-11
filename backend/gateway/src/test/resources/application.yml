@@ -1,0 +1,29 @@
+# Mismo contenido que main pero con un origen fijo para que la prueba no dependa del entorno.
+server:
+  port: 0
+
+spring:
+  application:
+    name: gateway-test
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: http://localhost:5173
+            allowedMethods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+            allowedHeaders: "*"
+            maxAge: 3600
+      routes:
+        - id: ms-catalogo
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/productos/**,/api/categorias/**,/api/ofertas/**,/api/catalogo/**
+        - id: ms-usuarios
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/usuarios/**,/api/auth/**
+        - id: ms-ordenes
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/ordenes/**,/api/mensajes/**

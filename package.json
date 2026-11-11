@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:seed-sql": "node backend/database/generar-seed-catalogo.mjs",
+    "db:seed-ordenes": "node backend/database/generar-seed-ordenes.mjs"
+  }
+}

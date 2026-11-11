@@ -1,0 +1,4 @@
+
+ALTER TABLE ordenes
+ALTER COLUMN pago_tarjeta_final
+SET DATA TYPE VARCHAR(4);
