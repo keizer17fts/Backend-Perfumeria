@@ -25,7 +25,7 @@ import java.util.Set;
 @Service
 public class ProductoService {
 
-    /** Filtros permitidos en GET /api/productos?campo=valor (igual que json-server). */
+    /** Filtros permitidos en GET /api/v1/productos?campo=valor (igual que json-server). */
     private static final Set<String> CAMPOS_FILTRABLES =
             Set.of("categoria", "genero", "familia", "estacion", "tipo", "marca", "concentracion", "codigo");
 

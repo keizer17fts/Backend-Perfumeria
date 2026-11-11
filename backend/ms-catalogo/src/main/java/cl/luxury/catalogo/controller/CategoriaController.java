@@ -22,7 +22,7 @@ import java.util.List;
 
 @Tag(name = "Categoria", description = "API de categorías: categorías utilizadas para clasificar perfumes. Consultar cada operación para conocer sus validaciones y respuestas.")
 @RestController
-@RequestMapping("/api/categorias")
+@RequestMapping("/api/v1/categorias")
 public class CategoriaController {
 
     private final CategoriaService servicio;
@@ -50,7 +50,7 @@ public class CategoriaController {
     @PostMapping
     public ResponseEntity<Categoria> crear(@Valid @RequestBody Categoria categoria) {
         Categoria creada = servicio.crear(categoria);
-        return ResponseEntity.created(URI.create("/api/categorias/" + creada.getId())).body(creada);
+        return ResponseEntity.created(URI.create("/api/v1/categorias/" + creada.getId())).body(creada);
     }
 
     @Operation(summary = "Reemplazar categoría mediante PUT", description = "Reemplaza los datos editables con el JSON completo. No sirve para editar solo un campo; se aplican las validaciones y reglas de negocio.")

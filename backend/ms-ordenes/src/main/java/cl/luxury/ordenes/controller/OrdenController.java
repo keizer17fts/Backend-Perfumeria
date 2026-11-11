@@ -1,5 +1,6 @@
 package cl.luxury.ordenes.controller;
 
+import cl.luxury.security.Seguridad;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -34,25 +35,36 @@ import java.util.Map;
 
 @Tag(name = "Orden", description = "API de órdenes: órdenes con cliente, dirección, artículos, importes y estado. Consultar cada operación para conocer sus validaciones y respuestas.")
 @RestController
-@RequestMapping("/api/ordenes")
+@RequestMapping("/api/v1/ordenes")
 public class OrdenController {
+
+    private final Seguridad tokens;
+
+    private Orden consultar(Long id) {
+        Orden orden = servicio.obtener(id);
+        Seguridad.exigir(Seguridad.rol("Administrador") || Seguridad.rol("Vendedor")
+            || (Seguridad.rol("Cliente") && Seguridad.sujeto().equals(orden.getUsuarioId()))
+            || (Seguridad.rol("Invitado") && Seguridad.sujeto().equals("orden-" + id)));
+        return orden;
+    }
 
     private final OrdenService servicio;
     private final BoletaPdfService boletaPdfService;
     private final BoletaCorreoService boletaCorreoService;
 
-    public OrdenController(OrdenService servicio, BoletaPdfService boletaPdfService, BoletaCorreoService boletaCorreoService) {
+    public OrdenController(OrdenService servicio, BoletaPdfService boletaPdfService, BoletaCorreoService boletaCorreoService, Seguridad tokens) {
+        this.tokens = tokens;
         this.servicio = servicio;
         this.boletaPdfService = boletaPdfService;
         this.boletaCorreoService = boletaCorreoService;
     }
 
-    /** Descarga del comprobante de una orden pagada (demo académica sin autenticación de API). */
+    /** Descarga del comprobante de una orden pagada. */
     @Operation(summary = "Descargar boleta de una compra confirmada", description = "Devuelve application/pdf para órdenes Pagado, En preparación, Enviado o Entregado. Órdenes no confirmadas producen 409.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "PDF de la boleta"), @ApiResponse(responseCode = "404", description = "Orden inexistente"), @ApiResponse(responseCode = "409", description = "La compra todavía no está confirmada")})
     @GetMapping(value = "/{id}/boleta", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> descargarBoleta(@PathVariable Long id) {
-        Orden orden = servicio.obtener(id);
+        Orden orden = consultar(id);
         if (!java.util.Set.of("Pagado", "En preparación", "Enviado", "Entregado").contains(orden.getEstado())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Solo hay boletas para compras confirmadas.");
         }
@@ -70,23 +82,25 @@ public class OrdenController {
 
     @Operation(summary = "Consultar estado de envío del comprobante por correo")
     @GetMapping("/{id}/boleta/correo")
-    public Map<String, Object> estadoCorreo(@PathVariable Long id) { return boletaCorreoService.consultar(id); }
+    public Map<String, Object> estadoCorreo(@PathVariable Long id) { consultar(id); return boletaCorreoService.consultar(id); }
 
     @Operation(summary = "Solicitar o reintentar el envío del comprobante al correo de la orden")
     @PostMapping("/{id}/boleta/correo")
     public ResponseEntity<Map<String, Object>> enviarCorreo(@PathVariable Long id) {
+        consultar(id);
         return ResponseEntity.accepted().body(boletaCorreoService.solicitar(id));
     }
 
-    /** GET /api/ordenes?usuarioId=20987654K&_sort=fecha&_order=desc  (historial de compras / listado admin) */
+    /** GET /api/v1/ordenes?usuarioId=20987654K&_sort=fecha&_order=desc  (historial de compras / listado admin) */
     @Operation(summary = "Listar órdenes", description = "Devuelve la lista de órdenes con cliente, dirección, artículos, importes y estado. Para filtros disponibles: usuarioId, estado, _sort y _order. Si no hay coincidencias devuelve una lista vacía.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista obtenida (puede estar vacía)")})
     @GetMapping
     public List<Orden> listar(@RequestParam Map<String, String> filtros) {
+        if (Seguridad.rol("Cliente")) filtros.put("usuarioId", Seguridad.sujeto());
         return servicio.listar(filtros);
     }
 
-    /** Comprobación rápida: GET http://localhost:8083/api/ordenes/salud (la ruta literal gana a /{id}). */
+    /** Comprobación rápida: GET http://localhost:8083/api/v1/ordenes/salud (la ruta literal gana a /{id}). */
     @Operation(summary = "Consultar salud del servicio", description = "Devuelve un JSON identificando el microservicio y su estado.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Operación realizada correctamente")})
     @GetMapping("/salud")
@@ -98,15 +112,19 @@ public class OrdenController {
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Operación realizada correctamente"), @ApiResponse(responseCode = "404", description = "Recurso no encontrado")})
     @GetMapping("/{id}")
     public Orden obtener(@PathVariable Long id) {
-        return servicio.obtener(id);
+        return consultar(id);
     }
 
     @Operation(summary = "Crear orden", description = "Recibe un JSON con los campos del recurso, valida sus datos y devuelve el registro creado junto a su ubicación.")
     @ApiResponses({@ApiResponse(responseCode = "201", description = "Recurso creado"), @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "409", description = "Conflicto con el estado del recurso")})
     @PostMapping
     public ResponseEntity<Orden> crear(@Valid @RequestBody OrdenRequest solicitud) {
+        Seguridad.exigir(Seguridad.rol("Administrador") || (solicitud.usuarioId() == null && !Seguridad.rol("Vendedor"))
+            || (Seguridad.rol("Cliente") && Seguridad.sujeto().equals(solicitud.usuarioId())));
         Orden creada = servicio.crear(solicitud);
-        return ResponseEntity.created(URI.create("/api/ordenes/" + creada.getId())).body(creada);
+        var respuesta = ResponseEntity.created(URI.create("/api/v1/ordenes/" + creada.getId()));
+        if (creada.getUsuarioId() == null) respuesta.header("X-Boleta-Token", tokens.emitir("orden-" + creada.getId(), "Invitado"));
+        return respuesta.body(creada);
     }
 
     @Operation(summary = "Reemplazar orden mediante PUT", description = "Reemplaza los datos editables con el JSON completo. No sirve para editar solo un campo; se aplican las validaciones y reglas de negocio. Solo se permite reemplazar una orden editable; no se pueden reemplazar productos de una compra pagada ni saltarse las transiciones de estado.")

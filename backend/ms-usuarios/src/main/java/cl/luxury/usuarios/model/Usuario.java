@@ -24,6 +24,10 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class Usuario {
 
+    @jakarta.persistence.Transient
+    @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+    private String accessToken;
+
     @Id
     @Column(length = 9)
     private String run;

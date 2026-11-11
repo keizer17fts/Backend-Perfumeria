@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @Tag(name = "AlertaStock", description = "API de alertas de stock: solicitudes de notificación de reposición. Consultar cada operación para conocer sus validaciones y respuestas.")
-@RestController @RequestMapping("/api/alertas-stock")
+@RestController @RequestMapping("/api/v1/alertas-stock")
 public class AlertaStockController {
     private final AlertaStockService alertas;
     public AlertaStockController(AlertaStockService alertas) { this.alertas = alertas; }

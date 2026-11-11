@@ -23,6 +23,8 @@
   </properties>
 
   <dependencies>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-oauth2-resource-server</artifactId></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
@@ -90,6 +92,13 @@
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId><artifactId>build-helper-maven-plugin</artifactId><version>3.6.0</version>
+        <executions><execution><id>seguridad-compartida</id><phase>generate-sources</phase>
+          <goals><goal>add-source</goal></goals>
+          <configuration><sources><source>${project.basedir}/../shared/src/main/java</source></sources></configuration>
+        </execution></executions>
+      </plugin>
       <!-- JDK 23+ ya no ejecuta procesadores de anotaciones por sí solo: se declara Lombok explícitamente -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

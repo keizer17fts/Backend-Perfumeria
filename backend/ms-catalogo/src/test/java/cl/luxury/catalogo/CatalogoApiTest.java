@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@org.springframework.security.test.context.support.WithMockUser(roles = "Administrador")
 @AutoConfigureMockMvc
 class CatalogoApiTest {
 
@@ -68,7 +69,7 @@ class CatalogoApiTest {
 
     @Test
     void listarDevuelveElIdComoTexto() throws Exception {
-        mvc.perform(get("/api/productos"))
+        mvc.perform(get("/api/v1/productos"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(String.valueOf(sauvage.getId())));
@@ -76,7 +77,7 @@ class CatalogoApiTest {
 
     @Test
     void listarFiltraPorCategoria() throws Exception {
-        mvc.perform(get("/api/productos").param("categoria", "intensos"))
+        mvc.perform(get("/api/v1/productos").param("categoria", "intensos"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].nombre").value("Sauvage Elixir"));
@@ -89,7 +90,7 @@ class CatalogoApiTest {
                  "categoria":"moderados","humor":["fresco","elegante"],
                  "notas":{"salida":["Citricos"],"corazon":["Ambar"],"fondo":["Almizcle"]}}
                 """;
-        mvc.perform(post("/api/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(post("/api/v1/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.humor[1]").value("elegante"))
                 .andExpect(jsonPath("$.notas.salida[0]").value("Citricos"))
@@ -99,27 +100,27 @@ class CatalogoApiTest {
     @Test
     void crearConCodigoRepetidoResponde409() throws Exception {
         String cuerpo = "{\"codigo\":\"LUX010\",\"marca\":\"X\",\"nombre\":\"Repetido\",\"precio\":1000}";
-        mvc.perform(post("/api/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(post("/api/v1/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isConflict());
     }
 
     @Test
     void crearConPrecioNegativoResponde400() throws Exception {
         String cuerpo = "{\"codigo\":\"LUX098\",\"marca\":\"X\",\"nombre\":\"Malo\",\"precio\":-5}";
-        mvc.perform(post("/api/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(post("/api/v1/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void crearConCategoriaInexistenteResponde400() throws Exception {
         String cuerpo = "{\"codigo\":\"LUX097\",\"marca\":\"X\",\"nombre\":\"Sin cat\",\"precio\":1000,\"categoria\":\"nada\"}";
-        mvc.perform(post("/api/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(post("/api/v1/productos").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void patchCambiaSoloLoEnviado() throws Exception {
-        mvc.perform(patch("/api/productos/" + sauvage.getId())
+        mvc.perform(patch("/api/v1/productos/" + sauvage.getId())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"stock\":3}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stock").value(3))
@@ -128,7 +129,7 @@ class CatalogoApiTest {
 
     @Test
     void productoInexistenteResponde404() throws Exception {
-        mvc.perform(get("/api/productos/999999"))
+        mvc.perform(get("/api/v1/productos/999999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -142,19 +143,19 @@ class CatalogoApiTest {
         oferta.setVigenteHasta(LocalDate.of(2026, 12, 31));
         ofertas.save(oferta);
 
-        mvc.perform(delete("/api/productos/" + sauvage.getId())).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/v1/productos/" + sauvage.getId())).andExpect(status().isNoContent());
 
         assertEquals(0, ofertas.count());
     }
 
     @Test
     void noSePuedeEliminarUnaCategoriaConProductos() throws Exception {
-        mvc.perform(delete("/api/categorias/intensos")).andExpect(status().isConflict());
+        mvc.perform(delete("/api/v1/categorias/intensos")).andExpect(status().isConflict());
     }
 
     @Test
     void crearCategoriaGeneraElSlugDesdeElNombre() throws Exception {
-        mvc.perform(post("/api/categorias").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/categorias").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Extra Intensos\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("extra-intensos"));
@@ -168,7 +169,7 @@ class CatalogoApiTest {
         oferta.setActiva(true);
         ofertas.save(oferta);
 
-        mvc.perform(get("/api/ofertas").param("activa", "true").param("_expand", "producto"))
+        mvc.perform(get("/api/v1/ofertas").param("activa", "true").param("_expand", "producto"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].descuento").value(20))
                 .andExpect(jsonPath("$[0].productoId").value(String.valueOf(sauvage.getId())))
@@ -177,8 +178,15 @@ class CatalogoApiTest {
 
     @Test
     void ofertaSobreProductoInexistenteResponde400() throws Exception {
-        mvc.perform(post("/api/ofertas").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ofertas").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"productoId\":\"999999\",\"descuento\":10}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(roles = "Vendedor")
+    void vendedorPuedeListarPeroNoEliminarProductos() throws Exception {
+        mvc.perform(get("/api/v1/productos")).andExpect(status().isOk());
+        mvc.perform(delete("/api/v1/productos/" + sauvage.getId())).andExpect(status().isForbidden());
     }
 }

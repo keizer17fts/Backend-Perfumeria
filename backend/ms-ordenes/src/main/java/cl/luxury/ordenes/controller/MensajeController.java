@@ -26,7 +26,7 @@ import java.util.Map;
 
 @Tag(name = "Mensaje", description = "API de mensajes: mensajes enviados desde contacto y su estado de lectura. Consultar cada operación para conocer sus validaciones y respuestas.")
 @RestController
-@RequestMapping("/api/mensajes")
+@RequestMapping("/api/v1/mensajes")
 public class MensajeController {
 
     private final MensajeService servicio;
@@ -54,7 +54,7 @@ public class MensajeController {
     @PostMapping
     public ResponseEntity<Mensaje> crear(@Valid @RequestBody MensajeRequest solicitud) {
         Mensaje creado = servicio.crear(solicitud);
-        return ResponseEntity.created(URI.create("/api/mensajes/" + creado.getId())).body(creado);
+        return ResponseEntity.created(URI.create("/api/v1/mensajes/" + creado.getId())).body(creado);
     }
 
     @Operation(summary = "Actualizar parcialmente mensaje mediante PATCH", description = "Recibe un objeto JSON con los campos a cambiar. No envíes el recurso completo; campos no enviados se conservan y los no permitidos pueden generar 400.")

@@ -21,7 +21,7 @@ class CorsTest {
     @Test
     void permiteElOrigenDeVitePorCadaMetodoQueUsaElFront() {
         for (String metodo : new String[]{"GET", "POST", "PUT", "PATCH", "DELETE"}) {
-            web.method(HttpMethod.OPTIONS).uri("/api/ordenes")
+            web.method(HttpMethod.OPTIONS).uri("/api/v1/ordenes")
                     .header("Origin", ORIGEN_VITE)
                     .header("Access-Control-Request-Method", metodo)
                     .header("Access-Control-Request-Headers", "content-type")
@@ -33,7 +33,7 @@ class CorsTest {
 
     @Test
     void cubreLasRutasDeLosTresMicroservicios() {
-        for (String ruta : new String[]{"/api/productos", "/api/usuarios/1", "/api/auth/login", "/api/mensajes"}) {
+        for (String ruta : new String[]{"/api/v1/productos", "/api/v1/usuarios/1", "/api/v1/auth/login", "/api/v1/mensajes"}) {
             web.method(HttpMethod.OPTIONS).uri(ruta)
                     .header("Origin", ORIGEN_VITE)
                     .header("Access-Control-Request-Method", "POST")
@@ -45,7 +45,7 @@ class CorsTest {
 
     @Test
     void rechazaUnOrigenQueNoEstaEnLaListaBlanca() {
-        web.method(HttpMethod.OPTIONS).uri("/api/ordenes")
+        web.method(HttpMethod.OPTIONS).uri("/api/v1/ordenes")
                 .header("Origin", "http://sitio-malicioso.example")
                 .header("Access-Control-Request-Method", "GET")
                 .exchange()

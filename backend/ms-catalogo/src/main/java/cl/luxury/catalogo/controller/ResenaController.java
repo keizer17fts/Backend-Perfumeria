@@ -1,5 +1,6 @@
 package cl.luxury.catalogo.controller;
 
+import cl.luxury.security.Seguridad;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,16 +19,19 @@ import java.net.URI;
 import java.util.*;
 
 @Tag(name = "Resena", description = "API de reseñas: reseñas de clientes por producto. Consultar cada operación para conocer sus validaciones y respuestas.")
-@RestController @RequestMapping("/api/resenas")
+@RestController @RequestMapping("/api/v1/resenas")
 public class ResenaController {
   private final ResenaRepository resenas;
   private final ProductoRepository productos;
   private final RestClient ordenes;
   public ResenaController(ResenaRepository resenas, ProductoRepository productos,
-                          @Value("${luxury.ordenes.url:http://localhost:8083}") String ordenesUrl) {
+                          @Value("${luxury.ordenes.url:http://localhost:8083}") String ordenesUrl, Seguridad tokens) {
     this.resenas = resenas;
     this.productos = productos;
-    this.ordenes = RestClient.builder().baseUrl(ordenesUrl).build();
+    this.ordenes = RestClient.builder().requestInterceptor((req, body, next) -> {
+            req.getHeaders().setBearerAuth(tokens.emitir("servicio", "Resenas"));
+            return next.execute(req, body);
+        }).baseUrl(ordenesUrl).build();
   }
   public record NuevaResena(Long productoId, String usuarioId, String nombre, Integer estrellas, String texto) {}
 
@@ -48,6 +52,7 @@ public class ResenaController {
         || dato.texto().isBlank() || dato.texto().trim().length() > 1000) {
       throw new SolicitudInvalidaException("Completa nombre, comentario (máximo 1000 caracteres) y calificación de 1 a 5.");
     }
+    Seguridad.exigir(Seguridad.rol("Administrador") || dato.usuarioId().equals(Seguridad.sujeto()));
     if (!productos.existsById(dato.productoId())) throw new NoEncontradoException("Producto no encontrado.");
     if (resenas.existsByProductoIdAndUsuarioId(dato.productoId(), dato.usuarioId()))
       throw new ConflictoException("Ya has publicado una reseña para este perfume.");
@@ -59,7 +64,7 @@ public class ResenaController {
     nueva.setTexto(dato.texto().trim());
     try {
       Resena guardada = resenas.save(nueva);
-      return ResponseEntity.created(URI.create("/api/resenas/" + guardada.getId())).body(guardada);
+      return ResponseEntity.created(URI.create("/api/v1/resenas/" + guardada.getId())).body(guardada);
     } catch (org.springframework.dao.DataIntegrityViolationException e) {
       throw new ConflictoException("Ya has publicado una reseña para este perfume.");
     }
@@ -67,7 +72,7 @@ public class ResenaController {
 
   private boolean haComprado(String usuarioId, Long productoId) {
     try {
-      JsonNode respuesta = ordenes.get().uri(uri -> uri.path("/api/ordenes")
+      JsonNode respuesta = ordenes.get().uri(uri -> uri.path("/api/v1/ordenes")
           .queryParam("usuarioId", usuarioId).build()).retrieve().body(JsonNode.class);
       if (respuesta == null || !respuesta.isArray()) return false;
       for (JsonNode orden : respuesta) {
@@ -84,7 +89,6 @@ public class ResenaController {
     }
   }
 
-  // Demo académica: igual que el CRUD de productos, sin sesión JWT en la API.
   @Operation(summary = "Eliminar reseña", description = "Elimina el registro si existe y si las reglas de negocio lo permiten. Devuelve 204 sin contenido al eliminar.")
     @ApiResponses({@ApiResponse(responseCode = "204", description = "Recurso eliminado"), @ApiResponse(responseCode = "404", description = "Recurso no encontrado")})
     @DeleteMapping("/{id}")

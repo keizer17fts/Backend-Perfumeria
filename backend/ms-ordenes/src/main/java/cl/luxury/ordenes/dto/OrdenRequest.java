@@ -14,7 +14,7 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Cuerpo de POST/PUT /api/ordenes. Tiene la misma forma que la orden que arma Checkout.jsx.
+ * Cuerpo de POST/PUT /api/v1/ordenes. Tiene la misma forma que la orden que arma Checkout.jsx.
  * Los importes son enteros en CLP. El servicio vuelve a calcular los subtotales (no confía en el cliente).
  */
 public record OrdenRequest(

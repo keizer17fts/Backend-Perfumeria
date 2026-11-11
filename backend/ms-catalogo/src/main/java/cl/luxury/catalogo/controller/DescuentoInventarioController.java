@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 @Tag(name = "Inventario", description = "Descuento por orden y compensación de inventario entre microservicios")
 @RestController
-@RequestMapping("/api/inventario")
+@RequestMapping("/api/v1/inventario")
 public class DescuentoInventarioController {
     private final DescuentoInventarioService servicio;
     public DescuentoInventarioController(DescuentoInventarioService servicio) { this.servicio = servicio; }

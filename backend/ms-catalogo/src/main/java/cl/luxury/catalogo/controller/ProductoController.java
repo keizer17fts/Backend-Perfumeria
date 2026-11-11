@@ -26,7 +26,7 @@ import java.util.Map;
 
 @Tag(name = "Producto", description = "API de productos: productos del catálogo, con precio, stock, categoría y datos de presentación. Consultar cada operación para conocer sus validaciones y respuestas.")
 @RestController
-@RequestMapping("/api/productos")
+@RequestMapping("/api/v1/productos")
 public class ProductoController {
 
     private final ProductoService servicio;
@@ -35,7 +35,7 @@ public class ProductoController {
         this.servicio = servicio;
     }
 
-    /** GET /api/productos?categoria=intensos&genero=hombre&q=sauvage */
+    /** GET /api/v1/productos?categoria=intensos&genero=hombre&q=sauvage */
     @Operation(summary = "Listar productos", description = "Devuelve la lista de productos del catálogo, con precio, stock, categoría y datos de presentación. Para filtros disponibles: categoria, genero, q y otros filtros admitidos por el servicio. Si no hay coincidencias devuelve una lista vacía.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista obtenida (puede estar vacía)")})
     @GetMapping
@@ -55,7 +55,7 @@ public class ProductoController {
     @PostMapping
     public ResponseEntity<Producto> crear(@Valid @RequestBody Producto producto) {
         Producto creado = servicio.crear(producto);
-        return ResponseEntity.created(URI.create("/api/productos/" + creado.getId())).body(creado);
+        return ResponseEntity.created(URI.create("/api/v1/productos/" + creado.getId())).body(creado);
     }
 
     @Operation(summary = "Reemplazar producto mediante PUT", description = "Reemplaza los datos editables con el JSON completo. No sirve para editar solo un campo; se aplican las validaciones y reglas de negocio.")

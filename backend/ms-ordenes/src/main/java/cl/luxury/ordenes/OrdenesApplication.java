@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+@org.springframework.context.annotation.Import(cl.luxury.security.Seguridad.class)
 @SpringBootApplication
 @EnableAsync
 @EnableScheduling

@@ -1,5 +1,6 @@
 package cl.luxury.ordenes.service;
 
+import cl.luxury.security.Seguridad;
 import cl.luxury.ordenes.exception.SolicitudInvalidaException;
 import cl.luxury.ordenes.model.Orden;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,11 +13,14 @@ import java.util.*;
 @Component
 public class InventarioClient {
     private final RestClient cliente;
-    public InventarioClient(@Value("${luxury.catalogo.url:http://localhost:8081}") String url) {
+    public InventarioClient(@Value("${luxury.catalogo.url:http://localhost:8081}") String url, Seguridad tokens) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(3000);
         factory.setReadTimeout(5000);
-        this.cliente = RestClient.builder().baseUrl(url).requestFactory(factory).build();
+        this.cliente = RestClient.builder().requestInterceptor((req, body, next) -> {
+            req.getHeaders().setBearerAuth(tokens.emitir("servicio", "Inventario"));
+            return next.execute(req, body);
+        }).baseUrl(url).requestFactory(factory).build();
     }
 
     public record ProductoActual(String id, String codigo, String nombre, String marca,
@@ -26,7 +30,7 @@ public class InventarioClient {
         try {
             long numero = Long.parseLong(id);
             if (numero <= 0) throw new NumberFormatException();
-            ProductoActual producto = cliente.get().uri("/api/productos/{id}", numero)
+            ProductoActual producto = cliente.get().uri("/api/v1/productos/{id}", numero)
                     .retrieve().body(ProductoActual.class);
             if (producto == null || producto.precio() == null || producto.precio() < 0 || producto.stock() == null) {
                 throw new IllegalStateException("Catálogo devolvió datos incompletos para el producto " + id);
@@ -43,7 +47,7 @@ public class InventarioClient {
 
     public int porcentajeCupon(String codigo) {
         try {
-            JsonCupon cupon = cliente.get().uri("/api/cupones/{codigo}/validar", codigo)
+            JsonCupon cupon = cliente.get().uri("/api/v1/cupones/{codigo}/validar", codigo)
                     .retrieve().body(JsonCupon.class);
             if (cupon == null || !Boolean.TRUE.equals(cupon.valido()) || cupon.descuento() == null
                     || cupon.descuento() < 1 || cupon.descuento() > 90) {
@@ -63,7 +67,7 @@ public class InventarioClient {
 
     public void revertirDescuento(long ordenId) {
         try {
-            cliente.post().uri("/api/inventario/revertir/{ordenId}", "ordenes:" + ordenId)
+            cliente.post().uri("/api/v1/inventario/revertir/{ordenId}", "ordenes:" + ordenId)
                     .retrieve().toBodilessEntity();
         } catch (RestClientException e) {
             throw new IllegalStateException("No se pudo revertir automáticamente el inventario de la orden " + ordenId, e);
@@ -79,7 +83,7 @@ public class InventarioClient {
             }
         }).toList();
         try {
-            cliente.post().uri("/api/inventario/descontar")
+            cliente.post().uri("/api/v1/inventario/descontar")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(Map.of("ordenId", "ordenes:" + orden.getId(), "items", lineas))
                     .retrieve().toBodilessEntity();

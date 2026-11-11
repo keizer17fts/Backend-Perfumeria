@@ -20,7 +20,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 @Tag(name = "Cupon", description = "API de cupones: cupones y sus condiciones de validez. Consultar cada operación para conocer sus validaciones y respuestas.")
-@RestController @RequestMapping("/api/cupones")
+@RestController @RequestMapping("/api/v1/cupones")
 public class CuponController {
     private final CuponRepository repo;
     public CuponController(CuponRepository repo) { this.repo = repo; }
@@ -58,7 +58,7 @@ public class CuponController {
         c.setCodigo(codigo(c.getCodigo())); validarFechas(c);
         if (repo.existsById(c.getCodigo())) throw new ResponseStatusException(HttpStatus.CONFLICT, "El cupón ya existe");
         Cupon creado = repo.save(c);
-        return ResponseEntity.created(URI.create("/api/cupones/" + creado.getCodigo())).body(creado);
+        return ResponseEntity.created(URI.create("/api/v1/cupones/" + creado.getCodigo())).body(creado);
     }
     @Transactional
     @Operation(summary = "Reemplazar cupón mediante PUT", description = "Reemplaza los datos editables con el JSON completo. No sirve para editar solo un campo; se aplican las validaciones y reglas de negocio.")

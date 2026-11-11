@@ -6,7 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.Instant;
 
-/** Cuerpo de POST /api/mensajes (el formulario de Contacto exige mínimo 10 caracteres en el mensaje). */
+/** Cuerpo de POST /api/v1/mensajes (el formulario de Contacto exige mínimo 10 caracteres en el mensaje). */
 public record MensajeRequest(
         @NotBlank @Size(max = 100) String nombre,
         @NotBlank @Email @Size(max = 100) String correo,

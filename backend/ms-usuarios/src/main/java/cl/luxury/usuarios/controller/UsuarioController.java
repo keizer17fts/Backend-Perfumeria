@@ -1,5 +1,6 @@
 package cl.luxury.usuarios.controller;
 
+import cl.luxury.security.Seguridad;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -28,7 +29,7 @@ import java.util.Map;
 
 @Tag(name = "Usuario", description = "API de usuarios: cuentas y datos de perfil. Consultar cada operación para conocer sus validaciones y respuestas.")
 @RestController
-@RequestMapping("/api/usuarios")
+@RequestMapping("/api/v1/usuarios")
 public class UsuarioController {
 
     private final UsuarioService servicio;
@@ -37,7 +38,7 @@ public class UsuarioController {
         this.servicio = servicio;
     }
 
-    /** GET /api/usuarios?correo=x@gmail.com  |  ?run=190110222  |  ?tipo=Cliente */
+    /** GET /api/v1/usuarios?correo=x@gmail.com  |  ?run=190110222  |  ?tipo=Cliente */
     @Operation(summary = "Listar usuarios", description = "Devuelve la lista de cuentas y datos de perfil. Para filtros disponibles: según filtros admitidos por el servicio. Si no hay coincidencias devuelve una lista vacía.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista obtenida (puede estar vacía)")})
     @GetMapping
@@ -49,6 +50,7 @@ public class UsuarioController {
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Operación realizada correctamente"), @ApiResponse(responseCode = "404", description = "Recurso no encontrado")})
     @GetMapping("/{id}")
     public Usuario obtener(@PathVariable String id) {
+        Seguridad.exigir(Seguridad.rol("Administrador") || id.equals(Seguridad.sujeto()));
         return servicio.obtener(id);
     }
 
@@ -56,8 +58,9 @@ public class UsuarioController {
     @ApiResponses({@ApiResponse(responseCode = "201", description = "Recurso creado"), @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "409", description = "Conflicto con el estado del recurso")})
     @PostMapping
     public ResponseEntity<Usuario> crear(@Valid @RequestBody UsuarioRequest solicitud) {
+        if (!Seguridad.rol("Administrador")) solicitud.setTipo("Cliente");
         Usuario creado = servicio.crear(solicitud);
-        return ResponseEntity.created(URI.create("/api/usuarios/" + creado.getRun())).body(creado);
+        return ResponseEntity.created(URI.create("/api/v1/usuarios/" + creado.getRun())).body(creado);
     }
 
     @Operation(summary = "Reemplazar usuario mediante PUT", description = "Reemplaza los datos editables con el JSON completo. No sirve para editar solo un campo; se aplican las validaciones y reglas de negocio.")
@@ -71,6 +74,12 @@ public class UsuarioController {
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Operación realizada correctamente"), @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "404", description = "Recurso no encontrado")})
     @PatchMapping("/{id}")
     public Usuario modificar(@PathVariable String id, @RequestBody JsonNode cambios) {
+        if (!Seguridad.rol("Administrador")) {
+            Seguridad.exigir(id.equals(Seguridad.sujeto()));
+            var campos = cambios.fieldNames();
+            var permitidos = java.util.Set.of("nombre","apellidos","correo","direccion","region","comuna","fechaNacimiento");
+            while (campos.hasNext()) Seguridad.exigir(permitidos.contains(campos.next()));
+        }
         return servicio.modificar(id, cambios);
     }
 
@@ -79,6 +88,7 @@ public class UsuarioController {
     @PostMapping("/{id}/cambiar-password")
     public ResponseEntity<Void> cambiarPassword(@PathVariable String id,
             @Valid @RequestBody CambioPasswordRequest solicitud) {
+        Seguridad.exigir(Seguridad.rol("Administrador") || id.equals(Seguridad.sujeto()));
         servicio.cambiarPassword(id, solicitud);
         return ResponseEntity.noContent().build();
     }

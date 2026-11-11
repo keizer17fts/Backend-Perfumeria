@@ -11,12 +11,12 @@ Abrir un grupo, seleccionar operación y pulsar **Try it out**, completar parám
 
 ## Referencias de uso
 
-- `GET /api/productos?categoria=intensos&genero=hombre&q=sauvage`: filtra productos.
-- `GET /api/ordenes?usuarioId=20987654K&_sort=fecha&_order=desc`: historial por usuario.
-- `PATCH /api/ordenes/{id}` con `{"estado":"En preparación"}`: transición de estado permitida solo desde un estado válido.
-- `PUT /api/ordenes/{id}`: reemplazo completo solo para una compra editable; no se puede reemplazar una compra ya pagada.
-- `DELETE /api/ordenes/{id}`: 204 si se elimina, 400 si una regla impide eliminarla, 404 si no existe.
-- `GET /api/ordenes/{id}/boleta`: PDF si la compra está confirmada, 409 en otro caso.
+- `GET /api/v1/productos?categoria=intensos&genero=hombre&q=sauvage`: filtra productos.
+- `GET /api/v1/ordenes?usuarioId=20987654K&_sort=fecha&_order=desc`: historial por usuario.
+- `PATCH /api/v1/ordenes/{id}` con `{"estado":"En preparación"}`: transición de estado permitida solo desde un estado válido.
+- `PUT /api/v1/ordenes/{id}`: reemplazo completo solo para una compra editable; no se puede reemplazar una compra ya pagada.
+- `DELETE /api/v1/ordenes/{id}`: 204 si se elimina, 400 si una regla impide eliminarla, 404 si no existe.
+- `GET /api/v1/ordenes/{id}/boleta`: PDF si la compra está confirmada, 409 en otro caso.
 
 ## Usuarios de demostración (F)
 

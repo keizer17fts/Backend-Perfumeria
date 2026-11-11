@@ -26,6 +26,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Pruebas de integración de ms-ordenes (MockMvc + H2 en memoria; no necesita MySQL). */
 @SpringBootTest
+@org.springframework.security.test.context.support.WithMockUser(roles = "Administrador")
 @AutoConfigureMockMvc
 class OrdenesApiTest {
 
@@ -71,7 +72,7 @@ class OrdenesApiTest {
     }
 
     private void crear(String cuerpo) throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isCreated());
     }
 
@@ -80,7 +81,7 @@ class OrdenesApiTest {
         when(inventario.consultarProducto("1")).thenReturn(
                 new InventarioClient.ProductoActual("1", "LUX001", "Turathi Blue",
                         "Afnan", "/img/a.jpg", 12000, 50));
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(ordenPagada(null, "2026-10-05T22:40:00.000Z")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.mensaje").value(org.hamcrest.Matchers.containsString("cambió")));
@@ -91,7 +92,7 @@ class OrdenesApiTest {
 
     @Test
     void crearDevuelve201ConIdYLaMismaFormaQueElMock() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(ordenPagada("20987654K", "2026-10-05T22:40:00.000Z")))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
@@ -113,7 +114,7 @@ class OrdenesApiTest {
 
     @Test
     void unaCompraComoInvitadoNoTraeUsuarioId() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(ordenPagada(null, "2026-10-05T22:40:00.000Z")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.usuarioId").doesNotExist());
@@ -121,7 +122,7 @@ class OrdenesApiTest {
 
     @Test
     void elRunSeNormalizaAlGuardar() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(ordenPagada("20.987.654-k", "2026-10-05T22:40:00.000Z")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.usuarioId").value("20987654K"));
@@ -131,14 +132,14 @@ class OrdenesApiTest {
     void rechazaUnaOrdenSinProductos() throws Exception {
         String sinItems = ordenPagada(null, "2026-10-05T22:40:00.000Z")
                 .replaceAll("(?s)\"items\": \\[.*?\\],\\s*\"subtotal\"", "\"items\": [], \"subtotal\"");
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON).content(sinItems))
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON).content(sinItems))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
     }
 
     @Test
     void rechazaUnEstadoInvalido() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(orden(null, "2026-10-05T22:40:00.000Z", "Entregado", 20000, 0)))
                 .andExpect(status().isBadRequest());
     }
@@ -146,13 +147,13 @@ class OrdenesApiTest {
     @Test
     void rechazaUnSubtotalQueNoCoincideConLosProductos() throws Exception {
         String malo = ordenPagada(null, "2026-10-05T22:40:00.000Z").replace("\"subtotal\": 20000, \"cupon\"", "\"subtotal\": 99999, \"cupon\"");
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON).content(malo))
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON).content(malo))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void rechazaUnTotalQueNoEsSubtotalMenosDescuentoEnUnaOrdenPagada() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(orden(null, "2026-10-05T22:40:00.000Z", "Pagado", 15000, 0)))
                 .andExpect(status().isBadRequest());
     }
@@ -160,7 +161,7 @@ class OrdenesApiTest {
     @Test
     void aceptaUnDescuentoSiElTotalLoConsidera() throws Exception {
         when(inventario.porcentajeCupon("LUXURY10")).thenReturn(10);
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(orden(null, "2026-10-05T22:40:00.000Z", "Pagado", 18000, 2000).replace("\"cupon\": null", "\"cupon\": \"LUXURY10\"")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.descuento").value(2000))
@@ -169,14 +170,14 @@ class OrdenesApiTest {
 
     @Test
     void rechazaUnDescuentoMayorAlSubtotal() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(orden(null, "2026-10-05T22:40:00.000Z", "Pagado", 0, 30000)))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void unPagoFallidoPuedeQuedarConTotalCero() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON)
                         .content(orden(null, "2026-10-05T22:40:00.000Z", "Pago fallido", 0, 0)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.estado").value("Pago fallido"))
@@ -186,13 +187,13 @@ class OrdenesApiTest {
     @Test
     void rechazaUnaTarjetaFinalQueNoSonCuatroDigitos() throws Exception {
         String malo = ordenPagada(null, "2026-10-05T22:40:00.000Z").replace("\"tarjetaFinal\": \"4242\"", "\"tarjetaFinal\": \"4242424242424242\"");
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON).content(malo))
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON).content(malo))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void rechazaJsonMalFormado() throws Exception {
-        mvc.perform(post("/api/ordenes").contentType(MediaType.APPLICATION_JSON).content("{ no es json"))
+        mvc.perform(post("/api/v1/ordenes").contentType(MediaType.APPLICATION_JSON).content("{ no es json"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -203,10 +204,10 @@ class OrdenesApiTest {
         crear(ordenPagada("20987654K", "2026-10-05T22:40:00.000Z"));
         Long id = ordenes.findAll().get(0).getId();
 
-        mvc.perform(get("/api/ordenes/" + id))
+        mvc.perform(get("/api/v1/ordenes/" + id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id));
-        mvc.perform(get("/api/ordenes/999999"))
+        mvc.perform(get("/api/v1/ordenes/999999"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -218,13 +219,13 @@ class OrdenesApiTest {
         crear(ordenPagada("152345674", "2026-10-01T10:00:00.000Z"));
         crear(ordenPagada(null, "2026-10-05T22:40:00.000Z"));
 
-        mvc.perform(get("/api/ordenes").param("usuarioId", "20987654K").param("_sort", "fecha").param("_order", "desc"))
+        mvc.perform(get("/api/v1/ordenes").param("usuarioId", "20987654K").param("_sort", "fecha").param("_order", "desc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].fecha").value("2026-09-28T19:05:00Z"))
                 .andExpect(jsonPath("$[1].fecha").value("2026-09-12T15:30:00Z"));
 
-        mvc.perform(get("/api/ordenes").param("_sort", "fecha").param("_order", "desc"))
+        mvc.perform(get("/api/v1/ordenes").param("_sort", "fecha").param("_order", "desc"))
                 .andExpect(jsonPath("$.length()").value(4))
                 .andExpect(jsonPath("$[0].fecha").value("2026-10-05T22:40:00Z"));
     }
@@ -234,16 +235,16 @@ class OrdenesApiTest {
         crear(ordenPagada(null, "2026-10-01T10:00:00.000Z"));
         crear(orden(null, "2026-10-02T10:00:00.000Z", "Pago fallido", 0, 0));
 
-        mvc.perform(get("/api/ordenes").param("estado", "pagado"))
+        mvc.perform(get("/api/v1/ordenes").param("estado", "pagado"))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].estado").value("Pagado"));
     }
 
     @Test
     void ordenarPorUnCampoInvalidoDa400() throws Exception {
-        mvc.perform(get("/api/ordenes").param("_sort", "pago_metodo"))
+        mvc.perform(get("/api/v1/ordenes").param("_sort", "pago_metodo"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get("/api/ordenes").param("_order", "arriba"))
+        mvc.perform(get("/api/v1/ordenes").param("_order", "arriba"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -254,7 +255,7 @@ class OrdenesApiTest {
         crear(orden(null, "2026-10-05T22:40:00.000Z", "Pago fallido", 0, 0));
         Long id = ordenes.findAll().get(0).getId();
 
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Pagado\"}"))
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Pagado\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("Pagado"))
                 .andExpect(jsonPath("$.total").value(20000));
@@ -265,11 +266,11 @@ class OrdenesApiTest {
         crear(ordenPagada(null, "2026-10-05T22:40:00.000Z"));
         Long id = ordenes.findAll().get(0).getId();
 
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Entregado\"}"))
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Entregado\"}"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"total\":1}"))
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"total\":1}"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(patch("/api/ordenes/999999").contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Pagado\"}"))
+        mvc.perform(patch("/api/v1/ordenes/999999").contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Pagado\"}"))
                 .andExpect(status().isNotFound());
     }
 
@@ -278,7 +279,7 @@ class OrdenesApiTest {
         crear(orden(null, "2026-10-05T22:40:00.000Z", "Pendiente", 20000, 0));
         Long id = ordenes.findAll().get(0).getId();
 
-        mvc.perform(put("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(put("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                         .content(orden("20987654K", "2026-10-06T10:00:00.000Z", "Pendiente", 20000, 0)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id))
@@ -293,23 +294,23 @@ class OrdenesApiTest {
         crear(orden(null, "2026-10-05T22:40:00.000Z", "Pendiente", 20000, 0));
         Long id = ordenes.findAll().get(0).getId();
         for (String estado : new String[]{"En preparación", "Enviado", "Entregado"}) {
-            mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+            mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"estado\":\"" + estado + "\"}"))
                     .andExpect(status().isBadRequest());
         }
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"estado\":\"Pago fallido\"}"))
                 .andExpect(status().isOk());
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"estado\":\"Enviado\"}"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"estado\":\"Pagado\"}"))
                 .andExpect(status().isOk());
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"estado\":\"Enviado\"}"))
                 .andExpect(status().isBadRequest());
-        mvc.perform(patch("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"estado\":\"En preparación\"}"))
                 .andExpect(status().isOk());
     }
@@ -318,10 +319,10 @@ class OrdenesApiTest {
     void putNoPuedeSaltarDesdePendienteDirectamenteAPagadoDespachado() throws Exception {
         crear(orden(null, "2026-10-05T22:40:00.000Z", "Pendiente", 20000, 0));
         Long id = ordenes.findAll().get(0).getId();
-        mvc.perform(put("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(put("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                 .content(orden(null, "2026-10-06T10:00:00.000Z", "Enviado", 20000, 0)))
                 .andExpect(status().isBadRequest());
-        mvc.perform(get("/api/ordenes/" + id))
+        mvc.perform(get("/api/v1/ordenes/" + id))
                 .andExpect(jsonPath("$.estado").value("Pendiente"));
     }
 
@@ -332,9 +333,9 @@ class OrdenesApiTest {
         crear(orden(null, "2026-10-05T22:40:00.000Z", "Pendiente", 20000, 0));
         Long id = ordenes.findAll().get(0).getId();
 
-        mvc.perform(delete("/api/ordenes/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get("/api/ordenes/" + id)).andExpect(status().isNotFound());
-        mvc.perform(delete("/api/ordenes/" + id)).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/ordenes/" + id)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/ordenes/" + id)).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/ordenes/" + id)).andExpect(status().isNotFound());
     }
 
     @Test
@@ -342,10 +343,10 @@ class OrdenesApiTest {
         crear(ordenPagada(null, "2026-10-05T22:40:00.000Z"));
         Long id = ordenes.findAll().get(0).getId();
 
-        mvc.perform(put("/api/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(put("/api/v1/ordenes/" + id).contentType(MediaType.APPLICATION_JSON)
                         .content(orden(null, "2026-10-06T10:00:00.000Z", "Pendiente", 20000, 0)))
                 .andExpect(status().isBadRequest());
-        mvc.perform(delete("/api/ordenes/" + id))
+        mvc.perform(delete("/api/v1/ordenes/" + id))
                 .andExpect(status().isBadRequest());
         assertEquals(1, ordenes.count());
     }
@@ -359,43 +360,43 @@ class OrdenesApiTest {
 
     @Test
     void elFormularioDeContactoGuardaElMensaje() throws Exception {
-        mvc.perform(post("/api/mensajes").contentType(MediaType.APPLICATION_JSON).content(MENSAJE))
+        mvc.perform(post("/api/v1/mensajes").contentType(MediaType.APPLICATION_JSON).content(MENSAJE))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.correo").value("ana@gmail.com"))
                 .andExpect(jsonPath("$.estado").value("Nuevo"));
 
-        mvc.perform(get("/api/mensajes"))
+        mvc.perform(get("/api/v1/mensajes"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
     }
 
     @Test
     void rechazaMensajesCortosOConCorreoInvalido() throws Exception {
-        mvc.perform(post("/api/mensajes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/mensajes").contentType(MediaType.APPLICATION_JSON)
                         .content(MENSAJE.replace("Hola, quiero saber el stock.", "Hola")))
                 .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/mensajes").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/mensajes").contentType(MediaType.APPLICATION_JSON)
                         .content(MENSAJE.replace("Ana@Gmail.com", "no-es-correo")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void sePuedeMarcarUnMensajeComoLeidoYBorrarlo() throws Exception {
-        mvc.perform(post("/api/mensajes").contentType(MediaType.APPLICATION_JSON).content(MENSAJE))
+        mvc.perform(post("/api/v1/mensajes").contentType(MediaType.APPLICATION_JSON).content(MENSAJE))
                 .andExpect(status().isCreated());
         Long id = mensajes.findAll().get(0).getId();
 
-        mvc.perform(patch("/api/mensajes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Leído\"}"))
+        mvc.perform(patch("/api/v1/mensajes/" + id).contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"Leído\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("Leído"));
-        mvc.perform(delete("/api/mensajes/" + id)).andExpect(status().isNoContent());
-        mvc.perform(get("/api/mensajes/" + id)).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/mensajes/" + id)).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/mensajes/" + id)).andExpect(status().isNotFound());
     }
 
     @Test
     void saludResponde() throws Exception {
-        mvc.perform(get("/api/ordenes/salud"))
+        mvc.perform(get("/api/v1/ordenes/salud"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.servicio").value("ms-ordenes"))
                 .andExpect(jsonPath("$.estado").value("OK"));

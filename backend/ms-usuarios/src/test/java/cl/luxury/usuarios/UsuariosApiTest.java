@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
+@org.springframework.security.test.context.support.WithMockUser(roles = "Administrador")
 @AutoConfigureMockMvc
 class UsuariosApiTest {
 
@@ -71,7 +72,7 @@ class UsuariosApiTest {
 
     @Test
     void crearNoDevuelveLaPasswordYGuardaUnHashBcrypt() throws Exception {
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "ana@gmail.com", "clave1")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("123456785"))
@@ -86,7 +87,7 @@ class UsuariosApiTest {
 
     @Test
     void crearNormalizaElRunConPuntosYGuion() throws Exception {
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("12.345.678-5", "ana@gmail.com", "clave1")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value("123456785"));
@@ -94,28 +95,28 @@ class UsuariosApiTest {
 
     @Test
     void crearConRunInvalidoResponde400() throws Exception {
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("190110221", "ana@gmail.com", "clave1")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void crearConCorreoDeDominioNoPermitidoResponde400() throws Exception {
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "ana@hotmail.com", "clave1")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void crearConPasswordCortaResponde400() throws Exception {
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "ana@gmail.com", "abc")))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     void crearSinPasswordResponde400() throws Exception {
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "ana@gmail.com", null)))
                 .andExpect(status().isBadRequest());
     }
@@ -123,7 +124,7 @@ class UsuariosApiTest {
     @Test
     void crearConCorreoRepetidoResponde409() throws Exception {
         guardar("111111111", "ana@gmail.com", "clave1", "Cliente");
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "ANA@gmail.com", "clave1")))
                 .andExpect(status().isConflict());
     }
@@ -131,7 +132,7 @@ class UsuariosApiTest {
     @Test
     void crearConRunRepetidoResponde409() throws Exception {
         guardar("123456785", "otra@gmail.com", "clave1", "Cliente");
-        mvc.perform(post("/api/usuarios").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/usuarios").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "ana@gmail.com", "clave1")))
                 .andExpect(status().isConflict());
     }
@@ -143,23 +144,23 @@ class UsuariosApiTest {
         guardar("123456785", "ana@gmail.com", "clave1", "Cliente");
         guardar("111111111", "luis@gmail.com", "clave1", "Cliente");
 
-        mvc.perform(get("/api/usuarios").param("correo", "ANA@gmail.com"))
+        mvc.perform(get("/api/v1/usuarios").param("correo", "ANA@gmail.com"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].run").value("123456785"))
                 .andExpect(jsonPath("$[0].password").doesNotExist());
 
-        mvc.perform(get("/api/usuarios").param("run", "11.111.111-1"))
+        mvc.perform(get("/api/v1/usuarios").param("run", "11.111.111-1"))
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].correo").value("luis@gmail.com"));
 
-        mvc.perform(get("/api/usuarios").param("run", "999999999"))
+        mvc.perform(get("/api/v1/usuarios").param("run", "999999999"))
                 .andExpect(jsonPath("$.length()").value(0));
     }
 
     @Test
     void usuarioInexistenteResponde404() throws Exception {
-        mvc.perform(get("/api/usuarios/123456785"))
+        mvc.perform(get("/api/v1/usuarios/123456785"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
     }
@@ -169,9 +170,10 @@ class UsuariosApiTest {
     @Test
     void loginCorrectoDevuelveElUsuarioSinPassword() throws Exception {
         guardar("190110222", "admin@duoc.cl", "admin123", "Administrador");
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(login("  ADMIN@duoc.cl ", "admin123")))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
                 .andExpect(jsonPath("$.tipo").value("Administrador"))
                 .andExpect(jsonPath("$.id").value("190110222"))
                 .andExpect(jsonPath("$.password").doesNotExist())
@@ -180,7 +182,7 @@ class UsuariosApiTest {
 
     @Test
     void loginConCorreoInexistenteResponde401IndicandoElCampoCorreo() throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(login("nadie@gmail.com", "clave1")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.campo").value("correo"));
@@ -189,7 +191,7 @@ class UsuariosApiTest {
     @Test
     void loginConPasswordIncorrectaResponde401IndicandoElCampoPassword() throws Exception {
         guardar("190110222", "admin@duoc.cl", "admin123", "Administrador");
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(login("admin@duoc.cl", "otra")))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.campo").value("password"));
@@ -200,12 +202,12 @@ class UsuariosApiTest {
     @Test
     void putSinPasswordConservaLaContrasenaActual() throws Exception {
         guardar("111111111", "luis@gmail.com", "clave1", "Cliente");
-        mvc.perform(put("/api/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(put("/api/v1/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("111111111", "luis@gmail.com", null).replace("Ana", "Luis")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Luis"));
 
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(login("luis@gmail.com", "clave1")))
                 .andExpect(status().isOk());
     }
@@ -213,7 +215,7 @@ class UsuariosApiTest {
     @Test
     void putNoPermiteCambiarElRun() throws Exception {
         guardar("111111111", "luis@gmail.com", "clave1", "Cliente");
-        mvc.perform(put("/api/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(put("/api/v1/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpo("123456785", "luis@gmail.com", null)))
                 .andExpect(status().isBadRequest());
     }
@@ -221,16 +223,16 @@ class UsuariosApiTest {
     @Test
     void patchCambiaSoloLoEnviadoYPermiteCambiarLaPassword() throws Exception {
         guardar("111111111", "luis@gmail.com", "clave1", "Cliente");
-        mvc.perform(patch("/api/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Luisito\",\"password\":\"nueva9\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nombre").value("Luisito"))
                 .andExpect(jsonPath("$.apellidos").value("Apellido"));
 
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(login("luis@gmail.com", "nueva9")))
                 .andExpect(status().isOk());
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(login("luis@gmail.com", "clave1")))
                 .andExpect(status().isUnauthorized());
     }
@@ -238,7 +240,7 @@ class UsuariosApiTest {
     @Test
     void patchIgnoraUnIntentoDeCambiarElRun() throws Exception {
         guardar("111111111", "luis@gmail.com", "clave1", "Cliente");
-        mvc.perform(patch("/api/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
+        mvc.perform(patch("/api/v1/usuarios/111111111").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"run\":\"123456785\",\"nombre\":\"Otro\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value("111111111"));
@@ -251,13 +253,27 @@ class UsuariosApiTest {
         guardar("190110222", "admin@duoc.cl", "admin123", "Administrador");
         guardar("111111111", "luis@gmail.com", "clave1", "Cliente");
 
-        mvc.perform(delete("/api/usuarios/111111111")).andExpect(status().isNoContent());
-        mvc.perform(get("/api/usuarios/111111111")).andExpect(status().isNotFound());
+        mvc.perform(delete("/api/v1/usuarios/111111111")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/usuarios/111111111")).andExpect(status().isNotFound());
     }
 
     @Test
     void noSePuedeEliminarAlUnicoAdministrador() throws Exception {
         guardar("190110222", "admin@duoc.cl", "admin123", "Administrador");
-        mvc.perform(delete("/api/usuarios/190110222")).andExpect(status().isConflict());
+        mvc.perform(delete("/api/v1/usuarios/190110222")).andExpect(status().isConflict());
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithAnonymousUser
+    void clienteAutenticadoPuedeLeerSuPerfilPeroNoElListado() throws Exception {
+        guardar("123456785", "ana@gmail.com", "clave1", "Cliente");
+        String body = mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content(login("ana@gmail.com", "clave1")))
+            .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String bearer = "Bearer " + new com.fasterxml.jackson.databind.ObjectMapper()
+            .readTree(body).get("accessToken").asText();
+        mvc.perform(get("/api/v1/usuarios/123456785").header("Authorization", bearer)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/usuarios").header("Authorization", bearer)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/usuarios")).andExpect(status().isUnauthorized());
     }
 }

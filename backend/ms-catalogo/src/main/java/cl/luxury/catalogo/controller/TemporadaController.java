@@ -21,7 +21,7 @@ import java.util.Locale;
  */
 @Tag(name = "Temporada visual", description = "Activación automática de Navidad y control manual desde administración.")
 @RestController
-@RequestMapping("/api/temporada")
+@RequestMapping("/api/v1/temporada")
 public class TemporadaController {
     private static final Path ARCHIVO = Path.of("data", "modo-navidad.txt");
     private static final ZoneId ZONA = ZoneId.of("America/Santiago");

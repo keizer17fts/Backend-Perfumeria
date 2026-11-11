@@ -15,9 +15,9 @@ Cada página Swagger se sirve directamente desde su microservicio. El gateway de
 
 ## CRUD documentado
 
-- Catálogo: `/api/productos` (GET/POST/PUT/PATCH/DELETE), `/api/categorias` (GET/POST/PUT/DELETE), `/api/ofertas` (GET/POST/PUT/DELETE), `/api/cupones` (GET/POST/PUT/DELETE y `/validar`), `/api/resenas` (GET/POST/DELETE), alertas de stock (POST).
-- Usuarios: `/api/usuarios` (GET/POST/PUT/PATCH/DELETE, cambio de contraseña), `/api/auth/login`.
-- Órdenes: `/api/ordenes` (GET/POST/PUT/PATCH/DELETE y PDF de boleta), `/api/mensajes` (GET/POST/PATCH/DELETE).
+- Catálogo: `/api/v1/productos` (GET/POST/PUT/PATCH/DELETE), `/api/v1/categorias` (GET/POST/PUT/DELETE), `/api/v1/ofertas` (GET/POST/PUT/DELETE), `/api/v1/cupones` (GET/POST/PUT/DELETE y `/validar`), `/api/v1/resenas` (GET/POST/DELETE), alertas de stock (POST).
+- Usuarios: `/api/v1/usuarios` (GET/POST/PUT/PATCH/DELETE, cambio de contraseña), `/api/v1/auth/login`.
+- Órdenes: `/api/v1/ordenes` (GET/POST/PUT/PATCH/DELETE y PDF de boleta), `/api/v1/mensajes` (GET/POST/PATCH/DELETE).
 
 Los recursos no necesariamente ofrecen todas las operaciones de CRUD: por ejemplo, las reseñas se publican y eliminan, y las alertas se solicitan. No se añadieron métodos ficticios que no existían en la lógica de negocio.
 

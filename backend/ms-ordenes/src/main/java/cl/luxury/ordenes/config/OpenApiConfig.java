@@ -12,6 +12,9 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI apiDocumentada() {
         return new OpenAPI()
+            .components(new io.swagger.v3.oas.models.Components().addSecuritySchemes("BearerJWT",
+                new io.swagger.v3.oas.models.security.SecurityScheme().type(io.swagger.v3.oas.models.security.SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT")))
+            .addSecurityItem(new io.swagger.v3.oas.models.security.SecurityRequirement().addList("BearerJWT"))
             .info(new Info().title("Luxury Perfumería - API Órdenes")
                 .version("1.0.0")
                 .description("Compras, estados de pedido, boletas PDF y mensajes.\n\nCRUD REST: GET consulta, POST crea (201), PUT reemplaza, PATCH actualiza parcialmente y DELETE elimina (204). " +

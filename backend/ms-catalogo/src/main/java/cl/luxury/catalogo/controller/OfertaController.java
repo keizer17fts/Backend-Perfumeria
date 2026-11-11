@@ -22,7 +22,7 @@ import java.net.URI;
 
 @Tag(name = "Oferta", description = "API de ofertas: ofertas y descuentos asociados a productos. Consultar cada operación para conocer sus validaciones y respuestas.")
 @RestController
-@RequestMapping("/api/ofertas")
+@RequestMapping("/api/v1/ofertas")
 public class OfertaController {
 
     private final OfertaService servicio;
@@ -31,7 +31,7 @@ public class OfertaController {
         this.servicio = servicio;
     }
 
-    /** GET /api/ofertas?activa=true&_expand=producto  (la forma que ya usa ofertasService.listarActivas) */
+    /** GET /api/v1/ofertas?activa=true&_expand=producto  (la forma que ya usa ofertasService.listarActivas) */
     @Operation(summary = "Listar ofertas", description = "Devuelve la lista de ofertas y descuentos asociados a productos. Para filtros disponibles: consultar las condiciones definidas en el servicio. Si no hay coincidencias devuelve una lista vacía.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Lista obtenida (puede estar vacía)")})
     @GetMapping
@@ -52,7 +52,7 @@ public class OfertaController {
     @PostMapping
     public ResponseEntity<Oferta> crear(@Valid @RequestBody Oferta oferta) {
         Oferta creada = servicio.crear(oferta);
-        return ResponseEntity.created(URI.create("/api/ofertas/" + creada.getId())).body(creada);
+        return ResponseEntity.created(URI.create("/api/v1/ofertas/" + creada.getId())).body(creada);
     }
 
     @Operation(summary = "Reemplazar oferta mediante PUT", description = "Reemplaza los datos editables con el JSON completo. No sirve para editar solo un campo; se aplican las validaciones y reglas de negocio.")
