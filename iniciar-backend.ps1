@@ -1,8 +1,55 @@
-# Iniciar Maison Luxury desde PowerShell: .\iniciar-backend.ps1
+﻿# Iniciar Maison Luxury desde PowerShell: .\iniciar-backend.ps1
 param([switch]$Firebase)
 $ErrorActionPreference = 'Stop'
 $raiz = $PSScriptRoot
 Set-Location $raiz
+
+
+# Preferir Java 21 instalado y compartir la seleccion con los procesos hijos.
+$candidatosJava = @($env:JAVA_HOME)
+foreach ($carpetaJava in @(
+  "$env:ProgramFiles\Java",
+  "$env:ProgramFiles\Eclipse Adoptium",
+  "$env:ProgramFiles\Microsoft"
+)) {
+  if (Test-Path -LiteralPath $carpetaJava) {
+    $candidatosJava += @(Get-ChildItem -LiteralPath $carpetaJava -Directory |
+      Select-Object -ExpandProperty FullName)
+  }
+}
+$comandoJava = Get-Command java.exe -ErrorAction SilentlyContinue
+if ($comandoJava) {
+  $candidatosJava += Split-Path (Split-Path $comandoJava.Source -Parent) -Parent
+}
+$javaElegido = $null
+foreach ($candidato in $candidatosJava) {
+  if ([string]::IsNullOrWhiteSpace($candidato)) { continue }
+  $releaseJava = Join-Path $candidato 'release'
+  if ((Test-Path -LiteralPath $releaseJava) -and
+      (Test-Path -LiteralPath (Join-Path $candidato 'bin\javac.exe'))) {
+    if (Select-String -LiteralPath $releaseJava -Pattern '^JAVA_VERSION="21(\.|")' -Quiet) {
+      $javaElegido = $candidato
+      break
+    }
+  }
+}
+if (-not $javaElegido) {
+  throw 'No se encontro JDK 21. Si esta en otra carpeta, define JAVA_HOME con su ruta y vuelve a ejecutar.'
+}
+$env:JAVA_HOME = $javaElegido
+$env:Path = "$(Join-Path $javaElegido 'bin');$env:Path"
+Write-Host "Java seleccionado: $javaElegido"
+
+# Reutilizar la cache propia que funciono en el laboratorio.
+$env:MAISON_MAVEN_REPOSITORY = Join-Path $env:LOCALAPPDATA 'MaisonLuxury\maven-repository'
+New-Item -ItemType Directory -Force -Path $env:MAISON_MAVEN_REPOSITORY | Out-Null
+$pruebaEscritura = Join-Path $env:MAISON_MAVEN_REPOSITORY ([guid]::NewGuid().ToString() + '.tmp')
+try {
+  [IO.File]::WriteAllText($pruebaEscritura, 'Maison')
+} finally {
+  if (Test-Path -LiteralPath $pruebaEscritura) { Remove-Item -LiteralPath $pruebaEscritura }
+}
+Write-Host "Cache de Maven: $env:MAISON_MAVEN_REPOSITORY"
 
 foreach ($cmd in @('java', 'mvn')) {
   if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
@@ -73,6 +120,6 @@ if (-not $env:MAISON_JWT_SECRET) {
 }
 foreach ($svc in @('ms-catalogo', 'ms-usuarios', 'ms-ordenes', 'gateway')) {
   Write-Host "Iniciando $svc..."
-  Start-Process -FilePath 'powershell.exe' -WorkingDirectory (Join-Path $raiz "backend/$svc") -ArgumentList @('-NoExit', '-Command', 'mvn spring-boot:run')
+  Start-Process -FilePath 'powershell.exe' -WorkingDirectory (Join-Path $raiz "backend/$svc") -ArgumentList @('-NoExit', '-Command', '& mvn "-Dmaven.repo.local=$env:MAISON_MAVEN_REPOSITORY" spring-boot:run')
 }
 Remove-Item Env:SMTP_PASSWORD -ErrorAction SilentlyContinue
