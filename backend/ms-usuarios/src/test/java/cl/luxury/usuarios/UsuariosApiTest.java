@@ -276,4 +276,23 @@ class UsuariosApiTest {
         mvc.perform(get("/api/v1/usuarios").header("Authorization", bearer)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/usuarios")).andExpect(status().isUnauthorized());
     }
+
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(roles = "Vendedor")
+    void vendedorNoPuedeListarUsuarios() throws Exception {
+        mvc.perform(get("/api/v1/usuarios")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithAnonymousUser
+    void listadoPrivadoSinSesionResponde401() throws Exception {
+        mvc.perform(get("/api/v1/usuarios")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(username = "190110222", roles = "Cliente")
+    void clienteNoPuedeConsultarOtroUsuario() throws Exception {
+        guardar("123456785", "otra@gmail.com", "clave1", "Cliente");
+        mvc.perform(get("/api/v1/usuarios/123456785")).andExpect(status().isForbidden());
+    }
 }

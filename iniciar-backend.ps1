@@ -5,12 +5,15 @@ $raiz = $PSScriptRoot
 Set-Location $raiz
 
 
-# Preferir Java 21 instalado y compartir la seleccion con los procesos hijos.
+# Preferir JDK 21; usar JDK 25 cuando no se encuentre el 21.
+# La seleccion se aplica solo a esta terminal y a sus procesos hijos.
 $candidatosJava = @($env:JAVA_HOME)
 foreach ($carpetaJava in @(
   "$env:ProgramFiles\Java",
   "$env:ProgramFiles\Eclipse Adoptium",
-  "$env:ProgramFiles\Microsoft"
+  "$env:ProgramFiles\Microsoft",
+  "$env:LOCALAPPDATA\Programs\Eclipse Adoptium",
+  "$env:USERPROFILE\.jdks"
 )) {
   if (Test-Path -LiteralPath $carpetaJava) {
     $candidatosJava += @(Get-ChildItem -LiteralPath $carpetaJava -Directory |
@@ -22,23 +25,30 @@ if ($comandoJava) {
   $candidatosJava += Split-Path (Split-Path $comandoJava.Source -Parent) -Parent
 }
 $javaElegido = $null
-foreach ($candidato in $candidatosJava) {
-  if ([string]::IsNullOrWhiteSpace($candidato)) { continue }
-  $releaseJava = Join-Path $candidato 'release'
-  if ((Test-Path -LiteralPath $releaseJava) -and
-      (Test-Path -LiteralPath (Join-Path $candidato 'bin\javac.exe'))) {
-    if (Select-String -LiteralPath $releaseJava -Pattern '^JAVA_VERSION="21(\.|")' -Quiet) {
-      $javaElegido = $candidato
-      break
+$versionElegida = $null
+foreach ($versionJava in @(21, 25)) {
+  foreach ($candidato in ($candidatosJava | Select-Object -Unique)) {
+    if ([string]::IsNullOrWhiteSpace($candidato)) { continue }
+    $releaseJava = Join-Path $candidato 'release'
+    if ((Test-Path -LiteralPath $releaseJava) -and
+        (Test-Path -LiteralPath (Join-Path $candidato 'bin\java.exe')) -and
+        (Test-Path -LiteralPath (Join-Path $candidato 'bin\javac.exe'))) {
+      $patronVersion = '^JAVA_VERSION="' + $versionJava + '(\.|"|[+-])'
+      if (Select-String -LiteralPath $releaseJava -Pattern $patronVersion -Quiet) {
+        $javaElegido = $candidato
+        $versionElegida = $versionJava
+        break
+      }
     }
   }
+  if ($javaElegido) { break }
 }
 if (-not $javaElegido) {
-  throw 'No se encontro JDK 21. Si esta en otra carpeta, define JAVA_HOME con su ruta y vuelve a ejecutar.'
+  throw 'No se encontro JDK 21 ni JDK 25. Si esta en otra carpeta, define JAVA_HOME con la ruta del JDK y vuelve a ejecutar.'
 }
 $env:JAVA_HOME = $javaElegido
 $env:Path = "$(Join-Path $javaElegido 'bin');$env:Path"
-Write-Host "Java seleccionado: $javaElegido"
+Write-Host "JDK $versionElegida seleccionado: $javaElegido"
 
 # Reutilizar la cache propia que funciono en el laboratorio.
 $env:MAISON_MAVEN_REPOSITORY = Join-Path $env:LOCALAPPDATA 'MaisonLuxury\maven-repository'
@@ -51,7 +61,7 @@ try {
 }
 Write-Host "Cache de Maven: $env:MAISON_MAVEN_REPOSITORY"
 
-foreach ($cmd in @('java', 'mvn')) {
+foreach ($cmd in @('java', 'mvn.cmd')) {
   if (-not (Get-Command $cmd -ErrorAction SilentlyContinue)) {
     throw "Falta '$cmd' en PATH. Instalalo y vuelve a abrir la terminal."
   }
@@ -118,8 +128,21 @@ if (-not $env:MAISON_JWT_SECRET) {
   $env:MAISON_JWT_SECRET = [Convert]::ToBase64String($bytes)
   [IO.File]::AppendAllText((Join-Path $raiz '.env'), "`r`nMAISON_JWT_SECRET=$env:MAISON_JWT_SECRET`r`n")
 }
+# EncodedCommand conserva las comillas al abrir cada terminal.
+# El array entrega la propiedad completa a Maven como un solo argumento.
+$comandoMaven = @'
+$argumentosMaven = @(
+  "-Dmaven.repo.local=$env:MAISON_MAVEN_REPOSITORY"
+  'spring-boot:run'
+)
+& mvn.cmd @argumentosMaven
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "Maven termino con codigo $LASTEXITCODE. Revisa el error anterior." -ForegroundColor Red
+}
+'@
+$comandoCodificado = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($comandoMaven))
 foreach ($svc in @('ms-catalogo', 'ms-usuarios', 'ms-ordenes', 'gateway')) {
   Write-Host "Iniciando $svc..."
-  Start-Process -FilePath 'powershell.exe' -WorkingDirectory (Join-Path $raiz "backend/$svc") -ArgumentList @('-NoExit', '-Command', '& mvn "-Dmaven.repo.local=$env:MAISON_MAVEN_REPOSITORY" spring-boot:run')
+  Start-Process -FilePath 'powershell.exe' -WorkingDirectory (Join-Path $raiz "backend/$svc") -ArgumentList @('-NoProfile', '-NoExit', '-EncodedCommand', $comandoCodificado)
 }
 Remove-Item Env:SMTP_PASSWORD -ErrorAction SilentlyContinue
